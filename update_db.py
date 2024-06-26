@@ -25,6 +25,19 @@ cursor.execute('''
 ''')
 db.commit()
 
+def fetch_user(user_id):
+    try:
+        response = client.users_info(user=user_id)
+        if response['ok']:
+            return response['user']
+        else:
+            print(f"Error fetching profile for user {user_id}: {response['error']}")
+            return None
+    except SlackApiError as e:
+        print(f"Error fetching profile for user {user_id}: {e.response['error']}")
+        return None
+
+
 def fetch_channel_members(channel_id):
     members = []
     cursor = None
@@ -94,11 +107,18 @@ def main(channel_id):
     print(channel_members)
     for user in channel_members:
         total_hours = fetch_total_hours(user)
-        name = fetch_user_profile_name(user)
-        timezone = fetch_user_timezone(user)
-        if total_hours is not None:
-            store_user_info(user,name,timezone,total_hours)
-            print(f"Updated {user}")
+        if total_hours is None or total_hours < 40:
+            continue
+        
+        stats = fetch_user(user)
+        name = stats['profile']['real_name']
+        if 'tz' in stats:
+            timezone = fetch_user_timezone(user)
+        else:
+            timezone = None    
+        
+        store_user_info(user,name,timezone,total_hours)
+        print(f"Updated {user}")
 
 # Run the main function
 if __name__ == '__main__':
