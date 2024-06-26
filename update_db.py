@@ -5,18 +5,22 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 # Initialize with your Slack token
-token = 'null'
+token = ''
 client = WebClient(token=token)
 
 # Connect to SQLite database (or create it if it doesn't exist)
 db = sqlite3.connect('slack_users.db')
 cursor = db.cursor()
 
+
 # Create table to store user data
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
+        name TEXT,
+        timezone TEXT,
         total_hours REAL
+        
     )
 ''')
 db.commit()
@@ -41,25 +45,6 @@ def fetch_channel_members(channel_id):
             break
     return members
 
-def fetch_users():
-    users = []
-    cursor = None
-    while True:
-        try:
-            response = client.users_list(cursor=cursor)
-            if response['ok']:
-                users.extend(response['members'])
-                cursor = response['response_metadata'].get('next_cursor')
-                if not cursor:
-                    break
-            else:
-                print('Error fetching users:', response['error'])
-                break
-        except SlackApiError as e:
-            print('Error fetching users:', e.response['error'])
-            break
-    return users
-
 def fetch_total_hours(user_id):
     try:
         response = requests.get(f'https://hackhour.hackclub.com/api/stats/{user_id}')
@@ -74,25 +59,49 @@ def fetch_total_hours(user_id):
         print(f"Error fetching stats for user {user_id}: {e}")
         return None
 
-def store_user_info(user,total_hours):
+def fetch_user_timezone(user_id):
+    try:
+        response = client.users_info(user=user_id)
+        if response['ok'] and 'tz' in response['user']:
+            return response['user']['tz']
+        else:
+            print(f"Error fetching profile for user {user_id}: {response['error']}")
+            return None
+    except SlackApiError as e:
+        print(f"Error fetching profile for user {user_id}: {e.response['error']}")
+        return None
+
+def fetch_user_profile_name(user_id):
+    try:
+        response = client.users_info(user=user_id)
+        if response['ok']:
+            return response['user']['profile']['real_name']
+        else:
+            print(f"Error fetching profile for user {user_id}: {response['error']}")
+            return None
+    except SlackApiError as e:
+        print(f"Error fetching profile for user {user_id}: {e.response['error']}")
+        return None
+
+def store_user_info(user,name,timezone,total_hours):
     cursor.execute('''
-        INSERT OR REPLACE INTO users (id, total_hours) VALUES (?, ?)
-    ''', (user, total_hours))
+        INSERT OR REPLACE INTO users (id, name,timezone,total_hours) VALUES (?, ?, ?, ?)
+    ''', (user, name, timezone,total_hours))
     db.commit()
 
 def main(channel_id):
-    # Fetch members of the specified channel
     channel_members = fetch_channel_members(channel_id)
     print(channel_members)
-    # Fetch total hours for each user and store in the database
     for user in channel_members:
         total_hours = fetch_total_hours(user)
+        name = fetch_user_profile_name(user)
+        timezone = fetch_user_timezone(user)
         if total_hours is not None:
-            store_user_info(user,total_hours)
-            print(f"Updated total hours for user {user}")
+            store_user_info(user,name,timezone,total_hours)
+            print(f"Updated {user}")
 
 # Run the main function
 if __name__ == '__main__':
     channel_id = 'C06SBHMQU8G'  # Replace with your channel ID
     main(channel_id)
-    db.close()
+    db.close()            
