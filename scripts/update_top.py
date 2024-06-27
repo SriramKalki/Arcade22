@@ -3,9 +3,9 @@ from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 import time
 import requests
-
+import os
 # Initialize with your Slack token
-token = ''
+token = os.environ['USER_API']
 client = WebClient(token=token)
 
 # Connect to SQLite database

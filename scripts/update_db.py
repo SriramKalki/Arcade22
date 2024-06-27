@@ -1,30 +1,18 @@
 import os
-import sqlite3
 import requests
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+cred = credentials.Certificate("path/to/serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 # Initialize with your Slack token
-token = ''
+token = os.environ['BOT_API']
 client = WebClient(token=token)
-
-# Connect to SQLite database (or create it if it doesn't exist)
-db = sqlite3.connect('slack_users.db')
-cursor = db.cursor()
-
-
-# Create table to store user data
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT,
-        timezone TEXT,
-        total_hours REAL,
-        tickets INT DEFAULT 0
-        
-    )
-''')
-db.commit()
 
 def fetch_user(user_id):
     try:
@@ -38,7 +26,6 @@ def fetch_user(user_id):
         print(f"Error fetching profile for user {user_id}: {e.response['error']}")
         return None
 
-
 def fetch_channel_members(channel_id):
     members = []
     cursor = None
@@ -48,7 +35,6 @@ def fetch_channel_members(channel_id):
             if response['ok']:
                 members.extend(response['members'])
                 cursor = response['response_metadata'].get('next_cursor')
-                print("ok")
                 if not cursor:
                     break
             else:
@@ -85,28 +71,18 @@ def fetch_user_timezone(user_id):
         print(f"Error fetching profile for user {user_id}: {e.response['error']}")
         return None
 
-def fetch_user_profile_name(user_id):
-    try:
-        response = client.users_info(user=user_id)
-        if response['ok']:
-            return response['user']['profile']['real_name']
-        else:
-            print(f"Error fetching profile for user {user_id}: {response['error']}")
-            return None
-    except SlackApiError as e:
-        print(f"Error fetching profile for user {user_id}: {e.response['error']}")
-        return None
+def store_user_info(user_id, name, timezone, total_hours):
+    user_ref = db.collection('users').document(user_id)
+    user_ref.set({
+        'id': user_id,
+        'name': name,
+        'timezone': timezone,
+        'total_hours': total_hours,
+        'tickets': 0  # Default value
+    }, merge=True)
 
-def store_user_info(user,name,timezone,total_hours):
-    cursor.execute('''
-        INSERT OR REPLACE INTO users (id, name,timezone,total_hours) VALUES (?, ?, ?, ?)
-    ''', (user, name, timezone,total_hours))
-    db.commit()
-
-# Note that only users with more than 40 hours are added into the database
 def main(channel_id):
     channel_members = fetch_channel_members(channel_id)
-    print(channel_members)
     for user in channel_members:
         total_hours = fetch_total_hours(user)
         if total_hours is None or total_hours < 40:
@@ -114,16 +90,11 @@ def main(channel_id):
         
         stats = fetch_user(user)
         name = stats['profile']['real_name']
-        if 'tz' in stats:
-            timezone = fetch_user_timezone(user).split('/')[0]
-        else:
-            timezone = None    
-        
-        store_user_info(user,name,timezone,total_hours)
+        timezone = fetch_user_timezone(user).split('/')[0] if 'tz' in stats else None
+        store_user_info(user, name, timezone, total_hours)
         print(f"Updated {user}")
 
 # Run the main function
 if __name__ == '__main__':
     channel_id = 'C06SBHMQU8G'  # Replace with your channel ID, this is the one for #arcade
     main(channel_id)
-    db.close()            
