@@ -40,6 +40,7 @@ def update_hours(user_id, total_hours):
     ''', (total_hours, user_id))
     db.commit()
 
+# This function only updates based on the current users in the database. Run update_db.py first!
 def main(channel_id):
     users = fetch_users_from_db()
     for i, user in enumerate(users):
@@ -52,6 +53,6 @@ def main(channel_id):
 
 # Run the main function
 if __name__ == '__main__':
-    channel_id = 'C06SBHMQU8G'  # Replace with your channel ID
+    channel_id = 'C06SBHMQU8G'  # Replace with your channel ID, this is the one for #arcade
     main(channel_id)
     db.close()            

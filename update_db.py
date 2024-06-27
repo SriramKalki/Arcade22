@@ -102,6 +102,7 @@ def store_user_info(user,name,timezone,total_hours):
     ''', (user, name, timezone,total_hours))
     db.commit()
 
+# Note that only users with more than 40 hours are added into the database
 def main(channel_id):
     channel_members = fetch_channel_members(channel_id)
     print(channel_members)
@@ -113,7 +114,7 @@ def main(channel_id):
         stats = fetch_user(user)
         name = stats['profile']['real_name']
         if 'tz' in stats:
-            timezone = fetch_user_timezone(user)
+            timezone = fetch_user_timezone(user).split('/')[0]
         else:
             timezone = None    
         
@@ -122,6 +123,6 @@ def main(channel_id):
 
 # Run the main function
 if __name__ == '__main__':
-    channel_id = 'C06SBHMQU8G'  # Replace with your channel ID
+    channel_id = 'C06SBHMQU8G'  # Replace with your channel ID, this is the one for #arcade
     main(channel_id)
     db.close()            
