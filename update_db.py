@@ -19,7 +19,8 @@ cursor.execute('''
         id TEXT PRIMARY KEY,
         name TEXT,
         timezone TEXT,
-        total_hours REAL
+        total_hours REAL,
+        tickets INT DEFAULT 0
         
     )
 ''')
