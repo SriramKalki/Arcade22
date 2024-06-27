@@ -5,7 +5,7 @@ import time
 import requests
 
 # Initialize with your Slack token
-token = ''
+token = 'xoxp-2210535565-7301284393809-7327145505924-55d9000a131b0f98e38fa04f536a0141'
 client = WebClient(token=token)
 
 # Connect to SQLite database

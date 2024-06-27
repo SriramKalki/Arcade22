@@ -7,7 +7,7 @@ def get_leaderboard_data(timezone=None):
     db = sqlite3.connect('slack_users.db')
     cursor = db.cursor()
     if timezone:
-        cursor.execute('SELECT id, name, timezone, total_hours FROM users WHERE timezone = ? ORDER BY total_hours DESC', (timezone,))
+        cursor.execute('SELECT id, name, timezone, total_hours,tickets FROM users WHERE timezone = ? ORDER BY total_hours DESC', (timezone,))
     data = cursor.fetchall()
     print(data)
     db.close()
